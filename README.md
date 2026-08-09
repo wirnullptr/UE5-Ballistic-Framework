@@ -55,5 +55,4 @@ v1.0 in closed testing. Networking (listen-server) and Fab release are next on t
 ## Links
 
 - Fab: *coming soon*
-- Telegram devlog: *link*
-- Discord: *link*
+- Telegram devlog: [*link*](https://t.me/WirDev)

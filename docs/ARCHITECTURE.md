@@ -1,62 +1,62 @@
 # Architecture & Core Mechanics
 
-## Обзор
+## Overview
 
-Плагин состоит из трёх независимых подсистем:
+The plugin is built from three independent subsystems:
 
-- **Core** (`UBallisticSubsystem`) — симуляция полёта, коллизии, рикошет и пробитие. GAS-free, damage-agnostic — ядро не знает ни о системе урона, ни о косметике.
-- **Cosmetic** (`UBallisticCosmeticSubsystem`) — визуальный и звуковой отклик: декали, частицы, звук, трейсеры.
-- **Damage Routing** (`UBallisticDamageRoutingSubsystem`) — маршрутизация урона к целям, опционально интегрируется с GAS через отдельный модуль `BallisticGAS`, без обязательной зависимости.
+- **Core** (`UBallisticFramework`) — flight simulation, collision, ricochet, and penetration. GAS-free and damage-agnostic: the core knows nothing about the damage system or cosmetics.
+- **Cosmetic** (`UBallisticCosmeticSubsystem`) — visual and audio response: decals, particles, sound, tracers.
+- **Damage Routing** (`UBallisticDamageRoutingSubsystem`) — routes damage to targets, optionally integrating with GAS through the separate `BallisticGAS` module, with no mandatory dependency.
 
-Ядро построено на SoA-архитектуре (Structure of Arrays) с sparse/dense-индексацией и generation handle, параллельной обработкой через `ParallelFor`, и адаптивной системой LOD, снижающей стоимость коллизий и косметики по мере удаления от игрока.
-
----
-
-## Система урона
-
-Damage Routing спроектирован как **уведомляющий**, не автоприменяющий — по умолчанию система сообщает о попадании, но не наносит урон сама, чтобы исключить двойное применение урона by construction.
-
-### Базовая настройка
-
-1. Добавь `UBallisticDamageTargetComponent` на актор, который должен получать урон
-2. Подпишись на `OnBallisticDamageReceived` (BlueprintAssignable-делегат) — броадкастится на каждый импакт из суб-батча
-3. В обработчике сам реши, что делать с уроном: применить `ApplyPointDamage`, GAS-эффект, кастомную логику, или проигнорировать
-
-Если не зарегистрировать `UBallisticDamageTargetComponent` — по умолчанию сработает `ApplyPointDamage` (стандартный урон "из коробки"), если `bFallbackToPointDamage = true` в Damage Routing Settings (дефолт).
-
-### Автоматический Point Damage без кода
-
-Если не хочешь подписываться на делегат вручную — включи `bAutoApplyPointDamage = true` на самом компоненте: после броадкаста дополнительно автоматически вызовется `ApplyPointDamage`. Дефолт `false`.
-
-### Интеграция с GAS (опционально)
-
-Ядро и базовый Damage Routing полностью GAS-free — эта интеграция подключается только если она нужна, отдельным модулем `BallisticGAS`.
-
-1. Создай `UBallisticGASDamageConfig` (Data Asset) — таблица маппинга `DamageProfileTag → FBallisticGASDamageEntry` (`DamageEffect` — какой `GameplayEffect` применить, `SetByCallerTag` — тег, в который подставится магнитуда урона из импакта)
-2. В обработчике `OnBallisticDamageReceived` вызови `UBallisticGASDamageStatics::ApplyBallisticDamageViaGAS(Impact, Target, Config)`
-3. `DamageProfileTag` берётся из профиля снаряда (`FBallisticProjectileProfile::DamageProfileTag`) — пустой тег = снаряд не привязан к GAS-урону
-
-ASC (`AbilitySystemComponent`) цели резолвится только через стандартный `GetAbilitySystemComponentFromActor` — никакого ручного каста на конкретный класс персонажа.
+The core is built on a SoA (Structure of Arrays) layout with sparse/dense indexing and generation handles, parallel processing via `ParallelFor`, and an adaptive LOD system that lowers collision and cosmetic cost as projectiles move away from the player.
 
 ---
 
-## Ключевые механики
+## Damage system
+
+Damage Routing is designed to **notify**, not auto-apply: by default the system reports a hit but does not deal damage itself, ruling out double application by construction.
+
+### Basic setup
+
+1. Add a `UBallisticDamageTargetComponent` to any actor that should take damage.
+2. Bind `OnBallisticDamageReceived` (a `BlueprintAssignable` delegate) — broadcast once per impact within a sub-batch.
+3. In the handler, decide what to do with the hit: call `ApplyPointDamage`, apply a GAS effect, run custom logic, or ignore it.
+
+If no `UBallisticDamageTargetComponent` is registered, `ApplyPointDamage` is applied as a fallback ("out-of-the-box" damage) when `bFallbackToPointDamage` is `true` in Damage Routing Settings. **Note:** this build ships with `bFallbackToPointDamage = false`, so enable it — or register a target component — to receive damage.
+
+### Automatic Point Damage without code
+
+If you would rather not bind the delegate manually, set `bAutoApplyPointDamage = true` on the component itself: after the broadcast, `ApplyPointDamage` is additionally called automatically. Default `false`.
+
+### GAS integration (optional)
+
+The core and the base Damage Routing are fully GAS-free — this integration is wired in only when needed, through the separate `BallisticGAS` module.
+
+1. Create a `UBallisticGASDamageConfig` (Data Asset) — a mapping table `DamageProfileTag → FBallisticGASDamageEntry` (`DamageEffect` — which `GameplayEffect` to apply; `SetByCallerTag` — the tag the impact's damage magnitude is written into).
+2. In the `OnBallisticDamageReceived` handler, call `UBallisticGASDamageStatics::ApplyBallisticDamageViaGAS(Impact, Target, Config)`.
+3. `DamageProfileTag` comes from the projectile profile (`FBallisticProjectileProfile::DamageProfileTag`) — an empty tag means the projectile is not bound to GAS damage.
+
+The target's ASC (`AbilitySystemComponent`) is resolved only through the standard `GetAbilitySystemComponentFromActor` — no manual cast to a specific character class.
+
+---
+
+## Key mechanics
 
 ### Collision-LOD
 
-Три уровня точности коллизий (L0/L1/L2) в зависимости от доли `DormantDistance` от игрока, плюс полная заморозка (dormant) за пределами `DormantDistance`. Дистанция измеряется от Pawn, не от камеры.
+Three collision-precision tiers (L0/L1/L2) based on the fraction of `DormantDistance` from the player, plus a full freeze (dormant) beyond `DormantDistance`. Distance is measured from the Pawn, not the camera.
 
-### Рикошет и пробитие
+### Ricochet & penetration
 
-Направление и угол определяют исход (см. `CriticalRicochetAngleDegrees`). До трёх взаимодействий на снаряд (жёсткий предел). Пробитие толстых объектов защищено от повторного срабатывания через `PenetrationIgnoreClearDistance`.
+Direction and angle determine the outcome (see `CriticalRicochetAngleDegrees`). The number of interactions per projectile is capped by the per-profile `MaxInteractions` (default 3); once reached, the projectile is destroyed. Penetration of thick objects is guarded against re-triggering via `PenetrationIgnoreClearDistance`.
 
-### FX-подсистема
+### FX subsystem
 
-Импакты батчатся по тику, культятся по FOV и дистанции, приоритизируются по энергии и дистанции при превышении `MaxFXPerSecond`. Декали — пул с приоритетным вытеснением, дальность видимости управляется отдельно от движкового `FadeScreenSize`.
+Impacts are batched per tick, culled by FOV and distance, and prioritized by energy and distance when `MaxFXPerSecond` is exceeded. Decals use a pool with priority-based eviction; their visibility range is controlled independently of the engine's `FadeScreenSize`.
 
-### Трейсеры — два независимых режима
+### Tracers — two independent modes
 
-- **Billboard** (`bTracersEnabled`) — дешёвые точки-спрайты, Niagara, CPU-симуляция. Подходят для сцен с массовым числом одновременных выстрелов.
-- **Ribbon** (`bTrailRibbonEnabled`) — полноценная 3D-геометрия, собственный C++-рендер, видна под любым углом. Дороже, подходит для крупного плана/реалистичных шутеров. Приоритет отображения при переполнении пула учитывает дистанцию до камеры и принадлежность снаряда локальному игроку.
+- **Billboard** (`bTracersEnabled`) — cheap sprite points, Niagara, CPU-driven. Suited to scenes with a large number of simultaneous shots.
+- **Ribbon** (`bTrailRibbonEnabled`) — full 3D geometry with a dedicated C++ renderer, visible from any angle. More expensive; suited to close-ups and realistic shooters. When the pool overflows, display priority accounts for distance to the camera and whether the projectile belongs to the local player.
 
-Полный список настраиваемых параметров — в [`CONFIGURATION.md`](./CONFIGURATION.md).
+The full list of configurable parameters is in [`CONFIGURATION.md`](./CONFIGURATION.md).

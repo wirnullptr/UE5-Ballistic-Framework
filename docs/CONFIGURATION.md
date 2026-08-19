@@ -1,82 +1,85 @@
 # Configuration Reference
 
-Все настройки — в `Project Settings → Plugins → Ballistic Framework`, три раздела.
+All settings live in `Project Settings → Plugins → Ballistic Framework`, split across three sections. Distances are in centimeters (Unreal units). The defaults listed below are the values this build ships with.
 
 ## Core
 
-| Поле                             | Дефолт   | Описание                                                                                                                              |
-| -------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `ProjectileDataAsset`            | —        | Data Asset с профилями снарядов. Обязателен — без него спавн падает.                                                                  |
-| `SurfaceInteractionAsset`        | —        | Data Asset взаимодействия с поверхностями. Не назначен → рикошет/пробитие выключены.                                                  |
-| `ParallelThreshold`              | 64       | Порог числа снарядов, с которого включается параллельная обработка.                                                                   |
-| `BatchSize`                      | 256      | Размер батча для `ParallelFor`.                                                                                                       |
-| `DormantDistance`                | 15000 см | Дистанция ухода снаряда в заморозку (dormant).                                                                                        |
-| `WakeSweepSagTolerance`          | 5 см     | Точность retroactive-проверки при пробуждении из dormant.                                                                             |
-| `MaxWakeSegments`                | 16       | Максимум сегментов wake-sweep.                                                                                                        |
-| `CollisionLOD1Fraction`          | 0.33     | Доля `DormantDistance`, ближе которой — полная точность коллизий (L0).                                                                |
-| `CollisionLOD2Fraction`          | 0.66     | Доля `DormantDistance` для перехода L1 → L2 (редкие line-трейсы).                                                                     |
-| `CollisionLOD2ThrottleInterval`  | 3        | На L2 — трейс раз в N substep'ов.                                                                                                     |
-| `PenetrationIgnoreClearDistance` | 100 см   | После пробития компонент игнорируется, пока снаряд не отойдёт на эту дистанцию (защита от повторного хита при пробитии толстых стен). |
-| `RicochetRandomSeed`             | 0x5EED   | Seed детерминированного потока рикошета.                                                                                              |
-| `MaxUnits`                       | 100000   | Максимум одновременно живых снарядов — определяет размер SoA-аллокации при старте.                                                    |
+| Field | Default | Description |
+| --- | --- | --- |
+| `ProjectileDataAsset` | — | Data Asset holding projectile profiles. If unset, the subsystem logs an error and falls back to a single built-in default profile (it does not crash); assign your own for real content. |
+| `SurfaceInteractionAsset` | — | Surface-interaction Data Asset. Unassigned → ricochet/penetration disabled. |
+| `ParallelThreshold` | 64 | Projectile count above which parallel processing kicks in. |
+| `BatchSize` | 256 | Batch size for `ParallelFor`. |
+| `DormantDistance` | 20000 cm | Distance at which a projectile goes dormant (frozen). |
+| `WakeSweepSagTolerance` | 5 cm | Precision of the retroactive check when waking from dormant. |
+| `MaxWakeSegments` | 16 | Maximum number of wake-sweep segments. |
+| `CollisionLOD1Fraction` | 0.33 | Fraction of `DormantDistance` within which collision runs at full precision (L0). |
+| `CollisionLOD2Fraction` | 0.66 | Fraction of `DormantDistance` for the L1 → L2 transition (sparse line traces). |
+| `CollisionLOD2ThrottleInterval` | 3 | On L2, trace once every N substeps. |
+| `PenetrationIgnoreClearDistance` | 100 cm | After penetration, the component is ignored until the projectile travels this far (prevents re-hitting when penetrating thick walls). |
+| `RicochetRandomSeed` | 0x5EED | Seed for the deterministic ricochet random stream. |
+| `MaxUnits` | 100000 | Maximum simultaneously live projectiles — determines the SoA allocation size at startup. |
 
 ## Cosmetic
 
-| Поле                                         | Дефолт  | Описание                                                                                                                                                                            |
-| --------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `FXCullDistance`                             | 5000 см | Дистанция отсечения FX (FOV-aware).                                                                                                                                                 |
-| `MaxFXPerSecond`                             | 64      | Token-bucket лимит FX в реальном времени (независим от масштаба игрового времени — работает и в bullet-time).                                                                       |
-| `MaxDecalsInWorld`                           | 500     | Кап пула декалей.                                                                                                                                                                   |
-| `DecalMaxVisibilityDistance`                 | 5000 см | Дальность видимости декали от камеры (движковый механизм `FadeScreenSize` не даёт настроить дальность в см напрямую — плагин реализует собственный per-frame контроль поверх него). |
-| `SoundNearThreshold`                         | 5000 см | Ближе этой дистанции — звук без задержки распространения.                                                                                                                           |
-| `SpeedOfSoundCmPerSec`                       | 34300   | Скорость звука для расчёта задержки на дальних попаданиях.                                                                                                                          |
-| `FXLibrary`                                  | —       | Data Asset с профилями импакт-эффектов по типу поверхности.                                                                                                                         |
-| `TracersEnabled` (`bTracersEnabled`)         | false   | Билборд-трейсеры (лёгкие точки, GPU-Niagara мост, CPU-симуляция).                                                                                                                   |
-| `TracerNiagaraSystem`                        | —       | Niagara-система для билборд-трейсеров. Не назначена → трейсеры выключены.                                                                                                           |
-| `MaxTracerBufferSize`                        | 100000  | Потолок буфера позиций трейсеров.                                                                                                                                                   |
-| `TrailRibbonEnabled` (`bTrailRibbonEnabled`) | false   | Ribbon-трейлы — полноценная 3D-геометрия хвоста, видна с любого ракурса (в т.ч. полёт на камеру, где билборд-спрайты не видны). Независим от билборд-трейсеров, можно включать оба. |
-| `MaxTrailSlots`                              | 512     | Лимит одновременных активных лент (независим от `MaxTracerBufferSize`).                                                                                                             |
-| `MaxTrailPoints`                             | 16      | Точек истории на одну ленту.                                                                                                                                                        |
-| `TrailCullDistance`                          | 5000 см | Дистанция отсечения лент от камеры.                                                                                                                                                 |
-| `TrailMinPointDistance`                      | 5 см    | Минимальное расстояние между соседними точками истории — избегает скопления точек у медленных/остановившихся снарядов.                                                              |
-| `TrailDefaultMaterial`                       | —       | Материал ленты по умолчанию (должен использовать Vertex Color для fade/цвета).                                                                                                      |
-| `TrailDefaultWidth`                          | 20      | Базовая ширина ленты.                                                                                                                                                               |
+| Field | Default | Description |
+| --- | --- | --- |
+| `FXCullDistance` | 3000 cm | FX cull distance (FOV-aware). |
+| `MaxFXPerSecond` | 64 | Token-bucket FX limit in real time (independent of game-time scale — works in bullet-time too). |
+| `MaxDecalsInWorld` | 256 | Decal pool cap. |
+| `DecalMaxVisibilityDistance` | 1000 cm | Decal visibility distance from the camera. The engine's `FadeScreenSize` cannot set a distance in cm directly, so the plugin implements its own per-frame control on top of it. |
+| `PenetrationExitTraceMaxDepth` | 100 cm | Maximum object thickness searched for a penetration exit point; thicker objects produce no exit FX. |
+| `SoundNearThreshold` | 5000 cm | Closer than this, sound plays without a propagation delay. |
+| `SpeedOfSoundCmPerSec` | 34300 | Speed of sound used to compute the delay on distant impacts. |
+| `FXLibrary` | — | Data Asset with impact-FX profiles per surface type. |
+| `TracersEnabled` (`bTracersEnabled`) | false | Billboard tracers (lightweight points, Niagara bridge, CPU simulation). |
+| `TracerNiagaraSystem` | `/BallisticFramework/Content/Preset/NS_BallisticTracer` (bundled) | Niagara system for billboard tracers. Cleared → tracers disabled. |
+| `MaxTracerBufferSize` | 20000 | Ceiling for the tracer position buffer. |
+| `TrailRibbonEnabled` (`bTrailRibbonEnabled`) | true | Ribbon trails — full 3D tail geometry, visible from any angle (including projectiles flying toward the camera, where billboard sprites are not visible). Independent of billboard tracers; both can be enabled. |
+| `MaxTrailSlots` | 512 | Cap on simultaneously active ribbons (independent of `MaxTracerBufferSize`). |
+| `MaxTrailPoints` | 4 | History points per ribbon. |
+| `TrailCullDistance` | 20000 cm | Ribbon cull distance from the camera. |
+| `TrailMinPointDistance` | 5 cm | Minimum distance between adjacent history points — avoids point pile-up on slow or stopped projectiles. |
+| `TrailDefaultMaterial` | `/BallisticFramework/Content/Preset/M_BallisticTracer` (bundled) | Default ribbon material (must use Vertex Color for fade/tint). |
+| `TrailDefaultWidth` | 3 | Base ribbon width. |
+| `TrailEnergyWeight` | 1 | Weight of projectile energy in the trail-eviction priority when the slot pool overflows. |
+| `TrailInstigatorBoost` | 10 | Priority multiplier for trails of projectiles owned by the local player when the pool overflows. |
 
 ## Damage Routing
 
-| Поле                     | Дефолт | Описание                                                                                                                              |
-| ------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `bFallbackToPointDamage` | true   | Если задетый актор не зарегистрирован как цель — применяется стандартный `ApplyPointDamage` ("урон из коробки" без ручной настройки). |
+| Field | Default | Description |
+| --- | --- | --- |
+| `bFallbackToPointDamage` | false | If the hit actor is not registered as a target, apply standard `ApplyPointDamage` ("out-of-the-box" damage). Ships disabled — enable it, or register a `UBallisticDamageTargetComponent`. |
 
 ---
 
 ## Data Assets
 
-### `UBallisticProjectileData` — профили снарядов
+### `UBallisticProjectileData` — projectile profiles
 
-Один asset, массив `Profiles` — индекс в массиве = `ProfileIndex` при спавне. Ключевые поля профиля:
+One asset, a `Profiles` array — the array index is the `ProfileIndex` used at spawn. Key profile fields:
 
-- **Physics**: `Mass` (кг), `DragCoefficient` [0-1], `Gravity`, `InitialSpeed` (см/с), `MaxLifetime` (сек)
-- **Collision**: `TraceRadius`, `TraceType` (Line/Sphere/Capsule)
-- **LOD**: `bResolveWhileDormant` — разрешить редкие коллизии во сне (дефолт false = полная заморозка)
-- **Interaction**: `MaxInteractionCount` (лимит рикошетов+пробитий до уничтожения), `bCanRicochetHitInstigator`, минимальная дистанция между отскоками
-- **Damage**: `DamageProfileTag` — тег для маппинга в GAS-эффект (пусто = без GAS-урона)
-- **Trail Ribbon** (per-profile override): цвет и множитель ширины ленты для этого типа снаряда
+- **Physics**: `Mass` (kg), `LinearDrag` [0–1], `Gravity` (cm/s², vector), `Speed` (cm/s), `MaxLifeTime` (s)
+- **Collision**: `CollisionRadius`, `TraceType` (Line/Sphere/Capsule), `CapsuleHalfHeight` (Capsule only)
+- **LOD**: `bResolveWhileDormant` — reserved; declared but not yet used (default `false` = full freeze)
+- **Interaction**: `MaxInteractions` (ricochet + penetration cap before destruction, default 3), `bCanRicochetHitInstigator`, `MinTravelBetweenInteractions`
+- **Damage**: `DamageProfileTag` — tag for mapping to a GAS effect (empty = no GAS damage)
+- **Trail Ribbon** (per-profile override): `TrailColor`, `TrailWidthMultiplier`
 
-### `UBallisticSurfaceInteractionData` — профили поверхностей
+### `UBallisticSurfaceInteractionData` — surface profiles
 
-`TMap<EPhysicalSurface, FBallisticSurfaceInteractionProfile>` + `DefaultProfile` (фоллбек). Ключевые поля профиля:
+`SurfaceProfiles` (`TMap<EPhysicalSurface, FBallisticSurfaceInteractionProfile>`) plus a `DefaultProfile` fallback. Key profile fields:
 
-- `CriticalRicochetAngleDegrees` (дефолт 15°) — угол, ниже которого рикошет предпочтительнее пробития
-- `TangentialEnergyRetention` / `NormalEnergyRetention` — сохранение энергии по касательной/нормали при отскоке
+- `CriticalRicochetAngleDegrees` (default 15°) — angle below which ricochet is preferred over penetration
+- `TangentialEnergyRetention` / `NormalEnergyRetention` — energy retained along/perpendicular to the surface on a bounce
 - `MinEnergyToRicochet` / `RicochetChance` / `RicochetDirectionJitterDegrees`
 - `bPenetrable`, `PenetrationEnergyLossFraction`, `MinEnergyToPenetrate`
 
-### `UBallisticImpactFXLibrary` — визуальный/звуковой отклик
+### `UBallisticImpactFXLibrary` — visual/audio response
 
-`TMap<EPhysicalSurface, FBallisticImpactFXEntry>` + `DefaultFX`. Поля записи:
+`SurfaceFX` (`TMap<EPhysicalSurface, FBallisticImpactFXEntry>`) plus a `DefaultFX` fallback. Entry fields:
 
-- `ImpactNiagara` / `ImpactSound` / `DecalMaterial` — базовый набор для обычного попадания
-- `RicochetNiagara` / `RicochetSound` / `RicochetDecalMaterial` — override для рикошета (фоллбек на базовые, если не заданы)
-- `PenetrationNiagara` / `PenetrationSound` / `PenetrationDecalMaterial` — override для пробития (аналогично; если задан хотя бы один — на выходе из объекта тоже спавнится эффект)
+- `ImpactNiagara` / `ImpactSound` / `DecalMaterial` — base set for a normal hit
+- `RicochetNiagara` / `RicochetSound` / `RicochetDecalMaterial` — ricochet overrides (fall back to the base set if unset)
+- `PenetrationNiagara` / `PenetrationSound` / `PenetrationDecalMaterial` — penetration overrides (same fallback; if at least one is set, an effect also spawns at the exit point)
 - `DecalSize`, `DecalLifetime`

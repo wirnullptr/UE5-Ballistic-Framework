@@ -3,6 +3,8 @@
 **High-performance projectile simulation for Unreal Engine 5.**
 Thousands of simultaneous bullets with real flight behavior, ricochet, penetration, and material-driven physics — no raycasts pretending to be bullets.
 
+*Unreal Engine 5.7 / 5.8 · binary-only preview (v1.0).*
+
 <!-- ![Benchmark](docs/media/benchmark.gif) -->
 <!-- ![Ricochet demo](docs/media/ricochet.gif) -->
 
@@ -35,18 +37,21 @@ Tested on an empty scene, no FX, same frame budget:
 
 ## Quick Start
 
-1. Copy the plugin into `[Project]/Plugins/`
-2. `Edit → Plugins` → enable **Ballistic Framework** → restart editor
-3. Create a `UBallisticProjectileData` asset, define at least one profile
-4. `Project Settings → Ballistic Framework → Core` → assign it to `ProjectileDataAsset`
-5. Call `SpawnBallisticUnit` (C++ or Blueprint) with the profile index
+1. Drop the plugin into `[Project]/Plugins/` and restart the editor (`Edit → Plugins` → enable **Ballistic Framework**).
+2. Create a `UBallisticProjectileData` asset and add at least one profile — the defaults already fly.
+3. `Project Settings → Plugins → Ballistic Framework → Core` → assign it to `ProjectileDataAsset`.
+4. Call `SpawnBallisticUnit` from C++ or Blueprint.
 
-Optional: assign `UBallisticSurfaceInteractionData` for ricochet/penetration, and `UBallisticImpactFXLibrary` for visual feedback.
+The ribbon-trail material and tracer Niagara system ship as plugin defaults, so trails are visible out of the box. Ricochet/penetration (`UBallisticSurfaceInteractionData`) and impact FX (`UBallisticImpactFXLibrary`) are optional and authored by you.
+
+**Full walkthrough (C++ and Blueprint):** [docs/QUICKSTART.md](./docs/QUICKSTART.md)
 
 ## Documentation
 
+- [Quick Start](./docs/QUICKSTART.md) — from install to a projectile on screen
 - [Architecture & Core Mechanics](./docs/ARCHITECTURE.md) — subsystems, damage routing, LOD, ricochet, tracers
-- [Configuration Reference](./docs/CONFIGURATION.md) — every Project Settings field, Data Asset field
+- [Configuration Reference](./docs/CONFIGURATION.md) — every Project Settings field and Data Asset field
+- [Changelog](./docs/CHANGELOG.md)
 
 ## Status
 
@@ -55,4 +60,4 @@ v1.0 in closed testing. Networking (listen-server) and Fab release are next on t
 ## Links
 
 - Fab: *coming soon*
-- Telegram devlog: [*link*](https://t.me/WirDev)
+- Telegram devlog: [link](https://t.me/WirDev)
